@@ -462,7 +462,7 @@ def get_xrf(beholden):
     file_path = 'uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Data_Raw/' + file_name[0]
     suffix = file_name[0].split('.')[1]
     if suffix == 'xlsx':
-        xhold = pd.read_excel(file_path)
+        xhold = pd.read_excel(file_path.read())
     if suffix == 'csv':
         xhold = pd.read_csv(file_path, skiprows=5)  # excel sheet must be named this in the folder
     try:
