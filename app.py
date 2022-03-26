@@ -42,39 +42,21 @@ def upload_file():
         os.makedirs('lead_Pit/LRA/finished_Docs', exist_ok=True)
     if not os.path.isfile('uploads'):
         os.makedirs('uploads', exist_ok=True)
-    print('POST_____________________________________________________________')
-
-    try:
-        print('3')
-        for file in request.form.getlist('file'):
-            print('\nfile')
-            print(file)
-            print(file.filename)
-    except:
-        print('3 fail')
-    print('\n')
 
     for file in request.files.getlist('file'):  # temporarily save import folder in uploads folder
-        print('check1')
         path_conc = ''
         for x in range(1, len(str(file.filename).split('/'))-1):
-            print('check2')
             if not os.path.exists('uploads' + path_conc + '/' + str(file.filename).split('/')[x]):
-                print('check3')
                 os.makedirs('uploads' + path_conc + '/' + str(file.filename).split('/')[x])
-            print('check4')
             path_conc += '/' + str(file.filename).split('/')[x]
-            print('check5')
         file.save('uploads' + path_conc + '/' + str(file.filename).split('/')[x+1])
 
-    # print('line before make_it()')
-    # make_it()  # create and temporarily save all report documents
+    make_it()  # create and temporarily save all report documents
 
     # save all report documents on ephemeral zipfile
     zip_buffer = BytesIO()
     zipfolder = ZipFile(zip_buffer, 'w', compression=zipfile.ZIP_STORED)
-    # for (root, dirs, files) in os.walk('lead_Pit/LRA/finished_Docs', topdown=True):
-    for (root, dirs, files) in os.walk('uploads', topdown=True):
+    for (root, dirs, files) in os.walk('lead_Pit/LRA/finished_Docs', topdown=True):
         if files:
             print('root', root)
             for file in files:
