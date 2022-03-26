@@ -18,7 +18,6 @@ setup(
         'matplotlib == 3.5.1',
         'pandas == 1.4.1',
         'pymupdf == 1.19.6',
-        'openpyxl',
         'xlsxwriter == 3.0.3'
     ]
 )
