@@ -10,12 +10,11 @@ from docx.oxml.shared import qn
 from docx.enum.table import WD_ALIGN_VERTICAL
 from matplotlib.backends.backend_pdf import PdfPages
 from datetime import datetime
-from tabula.io import read_pdf
+from tabula import wrapper
 from tools import *
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import tabula
 import string
 import docx
 import os
@@ -527,8 +526,8 @@ def parse_excel(schedule):
 # input: pdf_path is the relative path to the lab results
 # output: two variables, dust wipes and soil; as dfs
 def pdf_scrape(pdf_path):
-    pb_res_df = tabula.io.read_pdf(pdf_path, pages='all', multiple_tables=True)  # read table_Example.pdf into dataframe
-    pb_dripline_df = tabula.read_pdf(pdf_path, pages=3, area=[204.691, 34.689, 262.846, 566.503])
+    pb_res_df = wrapper.read_pdf(pdf_path, pages='all', multiple_tables=True)  # read table_Example.pdf into dataframe
+    pb_dripline_df = wrapper.read_pdf(pdf_path, pages=3, area=[204.691, 34.689, 262.846, 566.503])
 
     return pb_res_df, pb_dripline_df
 
