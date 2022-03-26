@@ -4,8 +4,12 @@ from zipfile import ZipFile
 from docx_Play import *
 from io import BytesIO
 
+import subprocess
 import zipfile
+import sys
 import os
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", 'openpyxl'])
 
 app = Flask(__name__)
 

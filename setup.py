@@ -18,6 +18,7 @@ setup(
         'matplotlib == 3.5.1',
         'pandas == 1.4.1',
         'pymupdf == 1.19.6',
-        'xlsxwriter == 3.0.3'
+        'xlsxwriter == 3.0.3',
+        'subprocess.run == 0.0.8'
     ]
 )
