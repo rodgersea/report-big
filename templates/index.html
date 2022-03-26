@@ -2,12 +2,11 @@
 <html>
   <head>
     <title>File Upload</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/styles.css') }}">
   </head>
   <body>
     <h1>Lead-Based Paint Reporting</h1>
-
-    <h3>  If you downloaded the sample report link, you folder structure will look like this below:</h3>
+    <h3>  The folder structure of the sample file download is as such:</h3>
       <pre>
         sample_Folder
         |
@@ -20,9 +19,9 @@
                   |    |    ...
                   |
                   |____...</pre>
-
-    <h3>When you <i>Choose File</i>, select the folder titled "sample_Folder" wherever you saved it after downloading and unzipping.</h3>
-    <h3>After selecting your file(folder), click <i>upload</i> to generate a zipfile containing all of the production documents</h3>
+    <h3>On <i>Choose Files</i>, select the folder path above "APP-#####..."</h3>
+    <p>If you downloaded the sample file, the folder to upload would be "sample_Folder"</p>
+    <h3>After selecting your folder, click <i>upload</i> to generate a zipfile containing the production documents</h3>
     <form method="POST" action="/" enctype="multipart/form-data">
       <p><input type="file" name="file" multiple webkitdirectory directory></p>
       <p><input type="submit" value="upload"></p>

@@ -19,6 +19,7 @@ setup(
         'pandas == 1.4.1',
         'pymupdf == 1.19.6',
         'xlsxwriter == 3.0.3',
-        'subprocess.run == 0.0.8'
+        'subprocess.run == 0.0.8',
+        'install-jdk == 0.3.0'
     ]
 )
