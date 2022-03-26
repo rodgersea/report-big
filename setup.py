@@ -20,6 +20,6 @@ setup(
         'pymupdf == 1.19.6',
         'xlsxwriter == 3.0.3',
         'subprocess.run == 0.0.8',
-        'install-jdk == 0.3.0'
+        'camelot-py == 0.10.1'
     ]
 )

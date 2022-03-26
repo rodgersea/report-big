@@ -13,8 +13,8 @@ from datetime import datetime
 from tools import *
 
 import matplotlib.pyplot as plt
-import tabula
 import pandas as pd
+import camelot
 import string
 import docx
 import os
@@ -526,10 +526,9 @@ def parse_excel(schedule):
 # input: pdf_path is the relative path to the lab results
 # output: two variables, dust wipes and soil; as dfs
 def pdf_scrape(pdf_path):
-    pb_res_df = pd.tabula.read_pdf(pdf_path, pages='all', multiple_tables=True)  # read table_Example.pdf into dataframe
-    pb_dripline_df = pd.tabula.read_pdf(pdf_path, pages=3, area=[204.691, 34.689, 262.846, 566.503])
+    pb_res_df = pd.camelot.read_pdf(pdf_path, flavor='stream', pages='all')
 
-    return pb_res_df, pb_dripline_df
+    return pb_res_df
 
 
 # input: xrf is the output of xrf-cleaner()
