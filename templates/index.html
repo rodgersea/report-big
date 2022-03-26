@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <title>File Upload</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <h1>Lead-Based Paint Reporting</h1>
+
+    <h3>  If you downloaded the sample report link, you folder structure will look like this below:</h3>
+      <pre>
+        sample_Folder
+        |
+        |____APP-03009 - 228 US HWY 17 N - Windsor
+             |
+             |____INSP-0009629_LBP
+                  |
+                  |____covid_Waiver
+                  |    |    Covid Waiver.png
+                  |    |    ...
+                  |
+                  |____...</pre>
+
+    <h3>When you <i>Choose File</i>, select the folder titled "sample_Folder" wherever you saved it after downloading and unzipping.</h3>
+    <h3>After selecting your file(folder), click <i>upload</i> to generate a zipfile containing all of the production documents</h3>
+    <form method="POST" action="/" enctype="multipart/form-data">
+      <p><input type="file" name="file" multiple webkitdirectory directory></p>
+      <p><input type="submit" value="upload"></p>
+    </form>
+
+    <h2>sample file download</h2>
+    <form method="GET" action="/download">
+      <p><button type="submit" class="btn btn-primary">download zipfile</p>
+    </form>
+  </body>
+</html>
