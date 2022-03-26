@@ -20,3 +20,4 @@ pandas==1.4.1
 pymupdf==1.19.6
 install-jdk==0.3.0
 camelot-py==0.10.1
+opencv-python==4.5.5.64
