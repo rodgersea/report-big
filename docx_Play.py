@@ -15,6 +15,7 @@ pd.options.mode.chained_assignment = None  # disables error caused by chained da
 
 
 def make_it():
+    print('make_it start')
     # ----------------------------------------------------------------------------------------------------------------------
     # global variables
     insp_num = {'Chris Ciappina': '120303',
@@ -169,4 +170,5 @@ def make_it():
             os.remove('lead_Pit/LRA/finished_Docs/' + thero[0] + '/res_end.png')
             os.remove('lead_Pit/LRA/finished_Docs/' + thero[0] + '/res_end.pdf')
             os.remove('lead_Pit/LRA/finished_Docs/' + thero[0] + '/res_main.pdf')
+    print('make_it end')
 
