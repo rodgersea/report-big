@@ -23,7 +23,6 @@ setup(
         'ghostscript >= 0.7',
         'xlrd >= 2.0.1',
         'tqdm >= 4.63.1',
-        'Pillow >= 9.0.1',
-        'camelot-py[base]'
+        'Pillow >= 9.0.1'
     ]
 )
