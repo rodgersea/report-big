@@ -25,3 +25,4 @@ camelot-py>=0.10.1
 xlrd>=2.0.1
 opencv-contrib.python-headless
 tqdm>=4.63.1
+xlsxwriter
