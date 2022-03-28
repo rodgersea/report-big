@@ -8,7 +8,7 @@ import zipfile
 import sys
 import os
 
-subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'camelot-py[cv]'])
+subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'camelot-py[base]'])
 from docx_Play import *
 
 app = Flask(__name__)
