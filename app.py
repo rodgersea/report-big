@@ -1,15 +1,13 @@
 
 from flask import Flask, render_template, request, send_file
 from zipfile import ZipFile
+from docx_Play import *
 from io import BytesIO
 
 import subprocess
 import zipfile
 import sys
 import os
-
-subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'camelot-py[base]'])
-from docx_Play import *
 
 app = Flask(__name__)
 
