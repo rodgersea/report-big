@@ -21,9 +21,7 @@ setup(
         'xlsxwriter >= 3.0.3',
         'subprocess.run >= 0.0.8',
         'ghostscript >= 0.7',
-        'camelot-py >= 0.10.1',
         'xlrd >= 2.0.1',
-        'opencv-python >= 4.5.5.64',
         'tqdm >= 4.63.1',
         'Pillow >= 9.0.1'
     ]
