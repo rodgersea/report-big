@@ -284,27 +284,44 @@ def xrf_tables(xrf, pdf_path):
     # ------------------------------------------------------------------------------------------------------------------
     # create df "Table 4, Dust Wipe Sample Analysis"
 
-    pb_wipes = pb_res[0][0]
-    pb_wipes = pb_wipes.drop(0)
-    pb_wipes.rename(columns={pb_wipes.columns[1]: 'sample id'})
-    pb_wipes1 = pb_wipes.iloc[::2]  # select every other row
-    pb_wipes1.columns = ['Sample #', 'Location', 'Surface Type', 'Concentration (ug/ft²)', 'Lead Hazard¹', 'one', 'two']
-    pb_wipes1 = pb_wipes1.reset_index(drop=True)
-    pb_wipes2 = pb_wipes.iloc[1::2]  # select opposite other rows
-    pb_wipes2.columns = ['one', 'two', 'three', 'four', 'five', 'six', 'seven']
-    pb_wipes2 = pb_wipes2.reset_index(drop=True)
-    pb_wipes2['six'] = pb_wipes2['six'].replace(['nan'], ['<5.00 μg/ft2'])
+    pb_wipes = pd.DataFrame(pb_res[0][0].df)
+    ihmo_num = pb_wipes.at[3, 1]
+    dispp('ihmo_num', ihmo_num)
 
-    pb_wipes3 = pb_wipes1
+    pb_wipes = pb_wipes.drop(pb_wipes.index[:5])
+    pb_wipes1 = pb_wipes.iloc[1::2]  # select every other row
+    pb_wipes1 = pb_wipes1.drop(pb_wipes1.columns[[0]], axis=1)
+    pb_wipes1 = pb_wipes1.reset_index(drop=True)
+    pb_wipes1.columns = ['one', 'two', 'three', 'four', 'five', 'six']
+
+    pb_wipes2 = pb_wipes.iloc[::2]  # select opposite other rows
+    pb_wipes2.columns = ['Sample #', 'Location', 'Surface Type', 'Concentration (ug/ft²)', 'Lead Hazard¹', 'one', 'two']
+    pb_wipes2 = pb_wipes2.drop(pb_wipes2.index[0])
+    pb_wipes2 = pb_wipes2.reset_index(drop=True)
+
+    pb_wipes3 = pb_wipes2
     for index, row in pb_wipes3.iterrows():
-        pb_wipes1.at[index, 'Sample #'] = 'DW' + str(index + 1)
-        pb_wipes3.at[index, 'Location'] = str(pb_wipes3.iloc[index]['Surface Type']).split(' ')[0]
-        pb_wipes3.at[index, 'Surface Type'] = str(pb_wipes3.iloc[index]['Surface Type']).split(' ')[-1]
-        pb_wipes3.at[index, 'Concentration (ug/ft²)'] = pb_wipes2.at[index, 'six']
-        if list(str(pb_wipes2.at[index, 'six']))[0] == '<' or str(pb_wipes2.at[index, 'six']) == 'nan':
-            pb_wipes1.at[index, 'Lead Hazard¹'] = 'No'
+        pb_wipes3.at[index, 'Sample #'] = 'DW' + str(index + 1)
+
+        charcheck = False
+        for char in list(str(pb_wipes1.at[index, 'two']).split(' ')[1]):
+            if char.isdigit():
+                charcheck = True
+
+        if charcheck:
+            pb_wipes3.at[index, 'Location'] = ' '.join(str(pb_wipes1.at[index, 'two']).split(' ')[:2])
+            pb_wipes3.at[index, 'Surface Type'] = ' '.join(str(pb_wipes1.at[index, 'two']).split(' ')[2:])
         else:
-            pb_wipes1.at[index, 'Lead Hazard¹'] = 'Yes'
+            pb_wipes3.at[index, 'Location'] = str(pb_wipes1.at[index, 'two']).split(' ')[0]
+            pb_wipes3.at[index, 'Surface Type'] = ' '.join(str(pb_wipes1.at[index, 'two']).split(' ')[1:])
+
+        pb_wipes3.at[index, 'Concentration (ug/ft²)'] = pb_wipes3.at[index, 'one']
+        pb_wipes3.iloc[8, 3] = pb_wipes3.iloc[8, 4]
+
+        if list(str(pb_wipes3.at[index, 'Concentration (ug/ft²)']))[0] == '<':
+            pb_wipes3.at[index, 'Lead Hazard¹'] = 'No'
+        else:
+            pb_wipes3.at[index, 'Lead Hazard¹'] = 'Yes'
 
     pb_wipes3['Location'] = pb_wipes3['Location'].replace(
         ['Bath', 'Bed', 'QC', 'Field', 'LR', 'Living', 'BR', 'Fam'],
@@ -316,33 +333,48 @@ def xrf_tables(xrf, pdf_path):
 
     pb_wipes3 = pb_wipes3.drop(['one', 'two'], axis=1)
     pb_wipes3['Concentration (ug/ft²)'] = pb_wipes3['Concentration (ug/ft²)'].map(lambda y: str(y).split(' ')[0])
-    pb_wipes3['Concentration (ug/ft²)'] = pb_wipes3['Concentration (ug/ft²)'].replace(['nan'], ['<5.00 μg/wipe'])
+    pb_wipes3.iloc[8, 3] = pb_wipes2.iloc[8, 4]
+
+    dispp('pb_wipes3', pb_wipes3)
 
     # ------------------------------------------------------------------------------------------------------------------
     # create df "Table 5: Soil Sample Analysis"
 
-    pb_drip = pb_res[1][0]
+    pb_drip = pd.DataFrame(pb_res[1][0].df)
+    dispp('pb_drip', pb_drip)
+
     pb_drip.columns = ['Sample #', 'Location', 'Bare/Covered', 'Concentration (mg/kg)', 'Lead Hazard¹', 'one', 'two',
                        'three']
-    pb_drip = pb_drip.drop([0], axis=0)
+    pb_drip = pb_drip.drop(pb_drip.index[:2], axis=0)
+    pb_drip = pb_drip.reset_index(drop=True)
+
+    dispp('pb_drip', pb_drip)
 
     if list(pb_drip.at[2, 'two'])[0] == '<':
         pb_haz = 'No'
     else:
         pb_haz = 'Yes'
 
-    drip_row = ['S-1', str(pb_drip.at[1, 'Bare/Covered']).split(' ')[-1], 'Bare', pb_drip.at[2, 'two'], pb_haz, 'hold',
+    drip_row = ['S-1', str(pb_drip.at[1, 'Bare/Covered']).split(' ')[-1], 'Bare', str(pb_drip.at[2, 'two']).split(' ')[0], pb_haz, 'hold',
                 'hold', 'hold']
     pb_drip.loc[1] = drip_row
+    dispp('pb_drip', pb_drip)
+
+    pb_drip = pb_drip.drop(0)
     pb_drip = pb_drip.drop(2)
-    pb_drip.at[1, 'Sample #'] = 'S-1'
-    pb_drip.at[1, 'Concentration (mg/kg)'] = str(pb_drip.at[1, 'Concentration (mg/kg)']).split(' ')[0]
+    pb_drip = pb_drip.reset_index(drop=True)
     pb_drip = pb_drip.drop(['one', 'two', 'three'], axis=1)
+
+    dispp('pb_drip', pb_drip)
 
     # ------------------------------------------------------------------------------------------------------------------
     # create df "Table 6: Lead Hazard Control Options¹"
 
-    tab6 = pb_drip.drop([1], axis=0)  # copy blank table 5 to tab6, drop last row
+    tab6 = pb_drip.copy()  # copy blank table 5 to tab6, drop last row
+    drip_boo = False
+    if pb_drip.iloc[0, 4] == 'Yes':
+        drip_boo = True
+    tab6 = tab6.drop(0)
     tab6.drop('Lead Hazard¹', axis=1, inplace=True)
     tab6.columns = ['Hazard Type', 'Location', 'Description', 'Control²⁻⁵']  # set columns of tab6
 
@@ -361,8 +393,7 @@ def xrf_tables(xrf, pdf_path):
                   'remove leaded dust']]
         s4 = pd.DataFrame(shold, columns=tab6.columns)
         tab6 = pd.concat([tab6, s4], axis=0)
-
-    if pb_drip['Lead Hazard¹'].str.contains('Yes').any():
+    if drip_boo:
         shold = [['Lead Soil Hazard',
                   'Exterior',
                   'Drip Line',
@@ -371,9 +402,12 @@ def xrf_tables(xrf, pdf_path):
         s5 = pd.DataFrame(shold, columns=tab6.columns)
         tab6 = pd.concat([tab6, s5], axis=0)
 
+    dispp('xrf_pos2', xrf_pos2)
     detrmlis = []  # blank list to hold deteriorated lbp locations
     detcomlis = []  # blank list to hold deteriorated lbp components
-    if xrf_pos2.shape[1] != 0:
+    print(xrf_pos2.shape)
+    print(xrf_pos2.shape[1])
+    if xrf_pos2.shape[0] > 0:
         for index, row in xrf_pos2.iterrows():
             detrmlis.append(xrf_pos2.at[index, 'Room'])
             detcomlis.append(xrf_pos2.at[index, 'Component²'])
@@ -383,6 +417,7 @@ def xrf_tables(xrf, pdf_path):
                  'Abatement, Enclosure, Encapsulation or Paint Film Stabilization']]
         s6 = pd.DataFrame(shold, columns=tab6.columns)
         tab6 = pd.concat([tab6, s6], axis=0)
+    dispp('tab6', tab6)
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -526,9 +561,17 @@ def parse_excel(schedule):
 # input: pdf_path is the relative path to the lab results
 # output: two variables, dust wipes and soil; as dfs
 def pdf_scrape(pdf_path):
-    pb_res_df = pd.camelot.read_pdf(pdf_path, flavor='stream', pages='all')
+    print('help')
+    pb_res_df = camelot.read_pdf(pdf_path, flavor='stream', pages='1,2')
+    pb_dripline_df = camelot.read_pdf(pdf_path, pages='3', flavor='stream', table_areas=['36, 600, 570, 530'])
+    for table in pb_res_df:
+        print(type(table.df))
+    print('_________________________________')
+    print(type(pb_res_df))
+    for table in pb_dripline_df:
+        print(type(table.df))
 
-    return pb_res_df
+    return pb_res_df, pb_dripline_df
 
 
 # input: xrf is the output of xrf-cleaner()

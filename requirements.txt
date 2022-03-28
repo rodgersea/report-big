@@ -22,3 +22,7 @@ install-jdk==0.3.0
 camelot-py==0.10.1
 opencv-python==4.5.5.64
 ghostscript==0.7
+camelot-py>=0.10.1
+xlrd>=2.0.1
+opencv-python>=4.5.5.64
+tqdm>=4.63.1
