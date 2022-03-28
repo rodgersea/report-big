@@ -9,6 +9,8 @@ import zipfile
 import sys
 import os
 
+subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'camelot-py[cv]'])
+
 app = Flask(__name__)
 
 if not os.path.isfile('lead_Pit/LRA/finished_Docs'):
