@@ -5,6 +5,7 @@ from func_repo import *
 from tools import *
 
 import pandas as pd
+import pandoc
 import fitz
 import sys
 import os
