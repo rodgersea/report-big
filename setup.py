@@ -25,6 +25,8 @@ setup(
         'tqdm >= 4.63.1',
         'Pillow >= 9.0.1',
         'xlsxwriter',
-        'pandoc'
+        'pandoc',
+        'reportlab',
+        'regex'
     ]
 )

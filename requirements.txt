@@ -27,3 +27,5 @@ opencv-contrib.python-headless
 tqdm>=4.63.1
 xlsxwriter
 pandoc
+reportlab
+regex

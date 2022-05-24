@@ -35,7 +35,7 @@ def img2pdf(fdr_nm):
 # output: key, value pair of matching entries in dictionary
 def search_arr(dic, quer):  # this looks wrong
     for j in dic:
-        if str(quer) in str(quer):
+        if str(quer) in str(j):
             return j, dic[j]
 
 

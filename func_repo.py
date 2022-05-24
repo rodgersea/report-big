@@ -17,7 +17,9 @@ import pandas as pd
 import camelot
 import string
 import docx
+import math
 import os
+import re
 
 pd.options.display.max_columns = None  # display options for table
 pd.options.display.width = None  # allows 'print table' to fill output screen
@@ -47,18 +49,24 @@ def create_photo_log(beholden):
 
     xrf_lab_lis = []
     xrf_pos_pat_lis = os.listdir('uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Photos')
+    xrf_pos_srt = []
     for x in range(len(xrf_pos_pat_lis)):
-        xrf_lab_lis.append('Reading ' + str(xrf_pos_pat_lis[x].split('_')[1]))
+        temp = re.findall(r'\d+', xrf_pos_pat_lis[x])
+        res = list(map(int, temp))[0]
+        xrf_pos_srt.append(res)
+    xrf_pos_srt_full = map(lambda y: 'Reading_' + str(y) + '_.jpg', sorted(xrf_pos_srt))
+    xrf_pos_lab_full = map(lambda y: 'Reading ' + str(y), sorted(xrf_pos_srt))
+    xrf_lab_lis = list(xrf_pos_srt_full)
+
     arr_xrf_pat = []
     for x in range(len(xrf_lab_lis)):
-        numhold = xrf_lab_lis[x].split(' ')[1]
-        arr_xrf_pat.append('uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Photos/' + str([num for num in xrf_pos_pat_lis if str(numhold) in str(num)][0]))
+        arr_xrf_pat.append('uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Photos/' + xrf_lab_lis[x])
 
-    lab_full = elev_lab_lis + xrf_lab_lis
+    lab_full = elev_lab_lis + list(xrf_pos_lab_full)
     pat_full = arr_elev_pat + arr_xrf_pat
     page_len = round(len(lab_full) / 6)
-    label_groups = [lab_full[i:i + 6] for i in range(0, len(lab_full), 6)]
-    pat_groups = [pat_full[i:i + 6] for i in range(0, len(pat_full), 6)]
+    label_groups = [lab_full[i:i + 6] for i in range(0, len(lab_full), 6)]  # array of labels to the photos
+    pat_groups = [pat_full[i:i + 6] for i in range(0, len(pat_full), 6)]  # array of paths to the photos
 
     table_arr = []
     header_arr = []
@@ -99,38 +107,43 @@ def create_photo_log(beholden):
 
         lg = label_groups[x]
         pg = pat_groups[x]
-        table_arr.append(doc.add_table(len(lg), 2))
+        table_arr.append(doc.add_table(len(lg)+1, 2))
         table_arr[x].alignment = WD_TABLE_ALIGNMENT.CENTER
         table_arr[x].style = 'Table Grid'
         cell_arr = []
         par_arr = []
         run_arr = []
-        for i in range(len(pg))[::2]:
+        for i in range(math.ceil(len(pg)/2)*2)[::2]:
             for j in range(2):
-                ipj = i + j
-                cell_arr.append(table_arr[x].cell(i, j))
-                cell_arr[ipj].width = Inches(3.5)
-                par_arr.append(cell_arr[ipj].paragraphs[0])
-                # par_arr[ipj].alignment = WD_ALIGN_PARAGRAPH.DISTRIBUTE
-                run_arr.append(par_arr[ipj].add_run())
-                run_arr[ipj].add_picture(pg[ipj], height=Inches(2.75))
-                last_p = doc.tables[-1].rows[-1].cells[-1].paragraphs[-1]
-                last_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                try:
+                    ipj = i + j
+                    cell_arr.append(table_arr[x].cell(i, j))
+                    cell_arr[ipj].width = Inches(3.5)
+                    par_arr.append(cell_arr[ipj].paragraphs[0])
+                    # par_arr[ipj].alignment = WD_ALIGN_PARAGRAPH.DISTRIBUTE
+                    run_arr.append(par_arr[ipj].add_run())
+                    run_arr[ipj].add_picture(pg[ipj], height=Inches(2.75))
+                    last_p = doc.tables[-1].rows[-1].cells[-1].paragraphs[-1]
+                    last_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                except:
+                    pass
 
         cell_label_arr = []
         par_label_arr = []
         run_label_arr = []
         font_label_arr = []
-        for i in range(len(pg))[1::2]:
+        for i in range(math.ceil(len(pg)/2)*2)[1::2]:
             for j in range(2):
-                comb = i + j -1
-                cell_label_arr.append(table_arr[x].cell(i, j))
-                par_label_arr.append(cell_label_arr[comb].paragraphs[0])
-                par_label_arr[comb].alignment = 1
-                run_label_arr.append(par_label_arr[comb].add_run(lg[comb]))
-                font_label_arr.append(run_label_arr[comb].font)
-                font_label_arr[comb].size = Pt(14)
-
+                try:
+                    comb = i + j -1
+                    cell_label_arr.append(table_arr[x].cell(i, j))
+                    par_label_arr.append(cell_label_arr[comb].paragraphs[0])
+                    par_label_arr[comb].alignment = 1
+                    run_label_arr.append(par_label_arr[comb].add_run(lg[comb]))
+                    font_label_arr.append(run_label_arr[comb].font)
+                    font_label_arr[comb].size = Pt(14)
+                except:
+                    pass
         skipper = 0
         for row in table_arr[x].rows:
             if skipper == 1:
@@ -164,14 +177,13 @@ def pop_table(dfs, findings, index):
         nonelis.append(None)
     if index < 3:
         dfs[index].loc[-1] = nonelis  # placeholder gets replaced later
-        t1_widths = [0.75, 0.5, 1.5, 1, 1.25, 1]
-    if index == 5:
-        dfs[5].loc[-1] = nonelis  # placeholder gets replaced later
-        t1_widths = [1.25, 0.75, 1.75, 2]
+        t1_widths = [0.4, 0.5, 1.5, 1, 1.25, 1.35]
     if index == 3 or index == 4:
         dfs[index].loc[-1] = nonelis  # placeholder gets replaced later
-        t1_widths = [.5, 1.25, 1.5, 1.75, 1]
-
+        t1_widths = [1, 1.5, 1.5, 1.75, 1.5]
+    if index > 4:
+        dfs[5].loc[-1] = nonelis  # placeholder gets replaced later
+        t1_widths = [1, 1.5, 1.75, 2]
     dfs[index].index = dfs[index].index + 1
     dfs[index].sort_index(inplace=True)
     findings.alignment = WD_TABLE_ALIGNMENT.CENTER  # align table center
@@ -286,7 +298,6 @@ def xrf_tables(xrf, pdf_path):
 
     pb_wipes = pd.DataFrame(pb_res[0][0].df)
     ihmo_num = pb_wipes.at[3, 1]
-    dispp('ihmo_num', ihmo_num)
 
     pb_wipes = pb_wipes.drop(pb_wipes.index[:5])
     pb_wipes1 = pb_wipes.iloc[1::2]  # select every other row
@@ -335,20 +346,14 @@ def xrf_tables(xrf, pdf_path):
     pb_wipes3['Concentration (ug/ft²)'] = pb_wipes3['Concentration (ug/ft²)'].map(lambda y: str(y).split(' ')[0])
     pb_wipes3.iloc[8, 3] = pb_wipes2.iloc[8, 4]
 
-    dispp('pb_wipes3', pb_wipes3)
-
     # ------------------------------------------------------------------------------------------------------------------
     # create df "Table 5: Soil Sample Analysis"
 
     pb_drip = pd.DataFrame(pb_res[1][0].df)
-    dispp('pb_drip', pb_drip)
-
     pb_drip.columns = ['Sample #', 'Location', 'Bare/Covered', 'Concentration (mg/kg)', 'Lead Hazard¹', 'one', 'two',
                        'three']
     pb_drip = pb_drip.drop(pb_drip.index[:2], axis=0)
     pb_drip = pb_drip.reset_index(drop=True)
-
-    dispp('pb_drip', pb_drip)
 
     if list(pb_drip.at[2, 'two'])[0] == '<':
         pb_haz = 'No'
@@ -358,14 +363,11 @@ def xrf_tables(xrf, pdf_path):
     drip_row = ['S-1', str(pb_drip.at[1, 'Bare/Covered']).split(' ')[-1], 'Bare', str(pb_drip.at[2, 'two']).split(' ')[0], pb_haz, 'hold',
                 'hold', 'hold']
     pb_drip.loc[1] = drip_row
-    dispp('pb_drip', pb_drip)
 
     pb_drip = pb_drip.drop(0)
     pb_drip = pb_drip.drop(2)
     pb_drip = pb_drip.reset_index(drop=True)
     pb_drip = pb_drip.drop(['one', 'two', 'three'], axis=1)
-
-    dispp('pb_drip', pb_drip)
 
     # ------------------------------------------------------------------------------------------------------------------
     # create df "Table 6: Lead Hazard Control Options¹"
@@ -402,11 +404,8 @@ def xrf_tables(xrf, pdf_path):
         s5 = pd.DataFrame(shold, columns=tab6.columns)
         tab6 = pd.concat([tab6, s5], axis=0)
 
-    dispp('xrf_pos2', xrf_pos2)
     detrmlis = []  # blank list to hold deteriorated lbp locations
     detcomlis = []  # blank list to hold deteriorated lbp components
-    print(xrf_pos2.shape)
-    print(xrf_pos2.shape[1])
     if xrf_pos2.shape[0] > 0:
         for index, row in xrf_pos2.iterrows():
             detrmlis.append(xrf_pos2.at[index, 'Room'])
@@ -417,7 +416,6 @@ def xrf_tables(xrf, pdf_path):
                  'Abatement, Enclosure, Encapsulation or Paint Film Stabilization']]
         s6 = pd.DataFrame(shold, columns=tab6.columns)
         tab6 = pd.concat([tab6, s6], axis=0)
-    dispp('tab6', tab6)
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -561,15 +559,8 @@ def parse_excel(schedule):
 # input: pdf_path is the relative path to the lab results
 # output: two variables, dust wipes and soil; as dfs
 def pdf_scrape(pdf_path):
-    print('help')
     pb_res_df = camelot.read_pdf(pdf_path, flavor='stream', pages='1,2')
     pb_dripline_df = camelot.read_pdf(pdf_path, pages='3', flavor='stream', table_areas=['36, 600, 570, 530'])
-    for table in pb_res_df:
-        print(type(table.df))
-    print('_________________________________')
-    print(type(pb_res_df))
-    for table in pb_dripline_df:
-        print(type(table.df))
 
     return pb_res_df, pb_dripline_df
 
@@ -758,19 +749,19 @@ def create_lra(dfliss, beholden, insp_num, proj_no):
     para.add_run('Lead Risk Assessment')
 
     para.add_run('\n\nLead-Based Paint Inspection: ').bold = True  # touch
-    if dflis[0].shape[0] > 0:
+    if dflis[0].shape[0] > 1 or dflis[0].at[0, 'Room'] != 'None Found':
         para.add_run('Lead-Based Paint Found')
     else:
         para.add_run('Lead-Based Paint Not Found')
 
     para.add_run('\n\nDeteriorated Lead-Based Paint: ').bold = True
-    if dflis[1].shape[0] > 0:
+    if dflis[1].shape[0] > 1 or dflis[1].at[0, 'Room'] != 'None Found':
         para.add_run('Yes')
     else:
         para.add_run('No')
 
     para.add_run('\n\nLead Containing Materials: ').bold = True
-    if dflis[2].shape[0] > 0:
+    if dflis[2].shape[0] > 1:
         para.add_run('Yes')
     else:
         para.add_run('No')
@@ -791,9 +782,10 @@ def create_lra(dfliss, beholden, insp_num, proj_no):
     para.add_run('Recommendations for lead-based paint hazards: see Table 6')
 
     para.add_run('\n\nInspector: ').bold = True
+    dispp(beholden)
     para.add_run(search_arr(insp_num, beholden[1])[0] + ', North Carolina Risk Assessor #' + search_arr(insp_num,
                                                                                                         beholden[1])[1])
-
+    para.add_run('\n')
     # add section for 2 inspector names and signatures at the bottom of the first page
     emp_name = beholden[1]  # assign current employee name to variable emp_name
     emp_lis = os.listdir('lead_Pit/reporting/sig_Block')  # create list of employees from sig_Block folder
@@ -803,7 +795,7 @@ def create_lra(dfliss, beholden, insp_num, proj_no):
         if emp_name.lower() in emp_lis[x]:
             sig_path = emp_lis[x]  # assign file path of current employee sig block to variable sig_path
             sig_path = 'lead_Pit/reporting/sig_Block/' + sig_path
-            doc.add_picture(sig_path)
+            doc.add_picture(sig_path, width=Inches(6.5), height=Inches(1.5))
             new_para = doc.paragraphs[-1]
             new_para.paragraph_format.left_indent = Inches(0.85)
 

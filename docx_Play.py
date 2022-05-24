@@ -19,7 +19,8 @@ def make_it():
     print('make_it start')
     # ----------------------------------------------------------------------------------------------------------------------
     # global variables
-    insp_num = {'Chris Ciappina': '120303',
+    insp_num = {'Elliott Rodgers': '110341',
+                'Chris Ciappina': '120303',
                 'Fabrizzio Simoni': '120304',
                 'Parker Alvis': '120301',
                 'Larry Rockefeller': '120291',
@@ -29,7 +30,8 @@ def make_it():
                 'Tom Majkowski': '120166',
                 'Brian Long': 'unknown',
                 'Kevin': 'unknown'}  # inspector numbers
-    name2sig = {'Chris Ciappina': 'chris_ciappina',
+    name2sig = {'Elliott Rodgers': 'elliott_rodgers',
+                'Chris Ciappina': 'chris_ciappina',
                 'Fabrizzio Simoni': 'fabrizzio_simoni',
                 'Parker Alvis': 'parker_alvis',
                 'Larry Rockefeller': 'larry_rockefeller',
@@ -39,7 +41,13 @@ def make_it():
                 'Tom Majkowski': 'tom_majkowski',
                 'Brian Long': 'brian_long',
                 'Kevin': 'unknown'}  # signature file name
-    proj_num = '210289.00'
+    table_names = ['Table 1: Lead-Based Paint¹',
+                   'Table 2: Deteriorated Lead-Based Paint¹',
+                   'Table 3: Lead Containing Materials²',
+                   'Table 4: Dust Wipe Sample Analysis',
+                   'Table 5: Soil Sample Analysis',
+                   'Table 6: Lead Hazard Control Options¹']
+    proj_num = '220083.00'
 
     # ----------------------------------------------------------------------------------------------------------------------
     # input: schedule as excel file
@@ -66,17 +74,18 @@ def make_it():
         # call create_lra function on df1 to create LRA's for all apps in dataframe
         for index, row in df.iterrows():
             thero = row.to_numpy()
+            dispp(thero)
             dash_str = thero[0] + ' - ' + thero[5] + ' - ' + thero[6]
 
             pdf_filename = os.listdir('uploads/' + str(dash_str) + '/' + str(thero[2]) + '_LBP/lab_Results/')
             pdf_path1 = 'uploads/' + str(dash_str) + '/' + str(thero[2]) + '_LBP/lab_Results/' + pdf_filename[0]
             gx = get_xrf(row.to_numpy())  # gx = raw xrf data
-            xtab = xrf_tables(gx, pdf_path1)  # xtab =
-
+            xtab = xrf_tables(gx, pdf_path1)
+            xtab1 = xrf_tables(gx, pdf_path1)
+            xtab2 = xrf_tables(gx, pdf_path1)
             # save xrf_clean.xlsx in app folder
             save_xrf_clean_xlsx(gx,
                                 thero)
-            print('TEST_______________________________________________________________________')
             sys.stdout.flush()
 
             # create table 1: Lead Based Paint, save as table1_lbp.xlsx
@@ -89,7 +98,7 @@ def make_it():
             pat_photo_log = 'lead_Pit/LRA/finished_Docs/' + thero[0] + '/' + thero[0] + '_photo_Log.docx'
             convert(pat_photo_log)
 
-            create_lra(xtab,  # dflis
+            create_lra(xtab1,  # dflis
                        thero,  # beholden
                        insp_num,  # from global variables
                        proj_num)  # from global variables
@@ -97,7 +106,7 @@ def make_it():
             path_lra = 'lead_Pit/LRA/finished_Docs/' + thero[0] + '/' + thero[0] + '_LRA.docx'
             convert(path_lra)
 
-            create_lbpas(xtab,  # dflis
+            create_lbpas(xtab2,  # dflis
                          thero,  # beholden
                          insp_num,  # from global variables
                          name2sig)  # from global variables
@@ -162,9 +171,7 @@ def make_it():
                          'lead_Pit/reporting/LRA/xrf_all.pdf',
                          'lead_Pit/reporting/LRA/certs.pdf',
                          'lead_Pit/reporting/Licensure/Lead/' + thero[1] + '.pdf',
-                         'lead_Pit/reporting/LRA/firm_license.pdf',
-
-                         'lead_Pit/reporting/LRA/rebuild.pdf']
+                         'lead_Pit/reporting/LRA/firm_license.pdf']
 
             merge_pdfs(merge_lis, 'lead_Pit/LRA/finished_Docs/' + thero[0] + '/' + thero[0] + '_LBP_Report.pdf')
 
