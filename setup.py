@@ -27,6 +27,7 @@ setup(
         'xlsxwriter',
         'pandoc',
         'reportlab',
-        'regex'
+        'regex',
+        'Pillow'
     ]
 )

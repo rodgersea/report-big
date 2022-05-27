@@ -1,15 +1,22 @@
 
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.enum.style import WD_STYLE_TYPE
+from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.shared import RGBColor, Inches, Pt
 from docx.oxml.xmlchemy import OxmlElement
+from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
 from docx.oxml.shared import qn
-from docx.enum.table import WD_ALIGN_VERTICAL
 from matplotlib.backends.backend_pdf import PdfPages
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen.canvas import Canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib import colors
+from reportlab.lib import utils
 from datetime import datetime
+from PIL import ImageFile
+from PIL import Image
 from tools import *
 
 import matplotlib.pyplot as plt
@@ -21,146 +28,182 @@ import math
 import os
 import re
 
-pd.options.display.max_columns = None  # display options for table
-pd.options.display.width = None  # allows 'print table' to fill output screen
 pd.options.mode.chained_assignment = None  # disables error caused by chained dataframe iteration
+pd.options.display.width = None  # allows 'print table' to fill output screen
+pd.options.display.max_columns = None  # display options for table
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+cwd = os.path.abspath(os.path.dirname(__file__))
 
 
 # input: elevation photos and xrf pos photos
-# output: photo log as docx and pdf
-def create_photo_log(beholden):
-    doc = docx.Document()  # create instance of a word document
-    sections = doc.sections  # change the page margins
-    for section in sections:  # set margins equal to 0 on all sides of doc container
-        section.top_margin = Inches(0.25)
-        section.bottom_margin = Inches(0)
-        section.left_margin = Inches(0.5)
-        section.right_margin = Inches(0.5)
+# output: photo log as pdf
+def create_photo_log_pdf(thero):
+    full_app = thero[0] + ' - ' + thero[5] + ' - ' + thero[6]
+    lead_str = thero[2] + '_LBP'
+    app_data_pat = os.path.join(cwd, 'uploads', full_app, lead_str, 'app_Data')
+    app_report_pat = os.path.join(cwd, 'finished_Docs', thero[0])
 
-    # create elevation and xrf photo dic
-    f_name = str(beholden[0]) + ' - ' + str(beholden[5] + ' - ' + str(beholden[6]))
+    x1 = 0  # x origin page
+    y1 = 0  # y origin page
+    x2 = 612  # x max page
+    y2 = 792  # y max page
+    x1tab = 37  # x origin table
+    y1tab = 37  # y origin table
+    x2tab = 575  # x max table
+    y2tab = 690  # y max table
+    cell_width = (x2tab - x1tab) / 2
+    picntxt_height = (y2tab - y1tab) / 3
+    hor_offset_tot = 20  # total horizontal whitespace; picture to cell, define vertical offset at getting ratio
+    hor_off = hor_offset_tot / 2
+    text_cell_height = 20
+    pic_cell_height = picntxt_height - text_cell_height
+    pic_width = ((x2tab - x1tab) / 2) - hor_offset_tot
 
-    elev_lab_lis = []
-    for x in range(4):
-        elev_lab_lis.append('Elevation ' + string.ascii_uppercase[x])
-    arr_elev_pat = []
-    for x in range(4):
-        arr_elev_pat.append(str('uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/elevations/' + string.ascii_lowercase[x] + '.jpg'))
+    elev_lis = []
+    for x in os.listdir(os.path.join(app_data_pat, 'elevations')):
+        if x[-4:] == '.png':
+            elev_lis.append(x)
 
-    xrf_lab_lis = []
-    xrf_pos_pat_lis = os.listdir('uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Photos')
-    xrf_pos_srt = []
-    for x in range(len(xrf_pos_pat_lis)):
-        temp = re.findall(r'\d+', xrf_pos_pat_lis[x])
-        res = list(map(int, temp))[0]
-        xrf_pos_srt.append(res)
-    xrf_pos_srt_full = map(lambda y: 'Reading_' + str(y) + '_.jpg', sorted(xrf_pos_srt))
-    xrf_pos_lab_full = map(lambda y: 'Reading ' + str(y), sorted(xrf_pos_srt))
-    xrf_lab_lis = list(xrf_pos_srt_full)
+    xrf_lis = []
+    for y in os.listdir(os.path.join(app_data_pat, 'xrf_Photos')):
+        if y[-4:] == '.png':
+            xrf_lis.append(y)
 
-    arr_xrf_pat = []
-    for x in range(len(xrf_lab_lis)):
-        arr_xrf_pat.append('uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Photos/' + xrf_lab_lis[x])
+    total_pics = len(elev_lis + xrf_lis)
+    page_len = math.ceil((4 + total_pics)/6)-1  # number of pages needed to accomadate photos
 
-    lab_full = elev_lab_lis + list(xrf_pos_lab_full)
-    pat_full = arr_elev_pat + arr_xrf_pat
-    page_len = round(len(lab_full) / 6)
-    label_groups = [lab_full[i:i + 6] for i in range(0, len(lab_full), 6)]  # array of labels to the photos
-    pat_groups = [pat_full[i:i + 6] for i in range(0, len(pat_full), 6)]  # array of paths to the photos
+    def get_pic_arr():  # get array of pictures
+        pic_arr = []
+        for x in range(4):
+            pic_arr.append(os.path.join(app_data_pat, 'elevations', string.ascii_lowercase[x] + '.png'))
 
-    table_arr = []
-    header_arr = []
-    brk_para_arr = []
-    brk_run_arr = []
-    # ------------------------------------------------------------------------------------------------------------------
-    for x in range(page_len):
-        # add header
-        header_arr.append(doc.add_table(1, 2))
-        header_widths = [7, 3]
-        header_arr[x].alignment = WD_TABLE_ALIGNMENT.CENTER
+        xrf_pos_pat_lis = os.listdir(os.path.join(app_data_pat, 'xrf_Photos'))
+        for x in xrf_pos_pat_lis:
+            if '.png' in x:
+                pic_arr.append(os.path.join(app_data_pat, 'xrf_Photos', x))
 
-        for i in range(1, 2):  # set table cell widths
-            for cell in header_arr[x].columns[i].cells:
-                cell.width = Inches(header_widths[i])
-                cell.height = Inches(1.5)
+        pat_groups = [pic_arr[i:i + 6] for i in range(0, len(pic_arr), 6)]
+        return pat_groups
 
-        # left cell
-        tab_head_left_cell = header_arr[x].cell(0, 0)
-        par_head_left = tab_head_left_cell.paragraphs[0]
-        run_head_left = par_head_left.add_run('Photo Log - ' + beholden[0])
-        font_head = run_head_left.font
-        font_head.size = Pt(14)
-        run_head_left.font.color.rgb = RGBColor(0, 91, 184)
-        par_head_left.alignment = 0
+    def get_lab_arr():  # make array of labels
+        elev_lab_lis = []
+        for x in range(4):
+            elev_lab_lis.append('Elevation ' + string.ascii_uppercase[x])
 
-        # right cell
-        tab_head_right_cell = header_arr[x].cell(0, 1)
-        par_head_right = tab_head_right_cell.paragraphs[0]
-        run_head_right = par_head_right.add_run()
-        run_head_right.add_picture('lead_Pit/reporting/photo_Log/ei.jpg', width=Inches(2))
-        par_head_right.alignment = 2
-        par_head_right.add_run()
+        xrf_pos_pat_lis = os.listdir(os.path.join(app_data_pat, 'xrf_Photos'))
+        xrf_lab_lis = []
+        for x in range(len(xrf_pos_pat_lis)):
+            if '.png' in xrf_pos_pat_lis[x]:
+                xrf_lab_lis.append('Reading ' + str(xrf_pos_pat_lis[x].split('_')[1]))
+        lab_full = elev_lab_lis + xrf_lab_lis
+        lab_fuller = [lab_full[i:i + 6] for i in range(0, len(lab_full), 6)]
 
-        # t_head formatting
-        header_arr[x].cell(0, 0).vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        # ------------------------------------------------------------------------------------------------------------------
+        return lab_fuller
 
-        lg = label_groups[x]
-        pg = pat_groups[x]
-        table_arr.append(doc.add_table(len(lg)+1, 2))
-        table_arr[x].alignment = WD_TABLE_ALIGNMENT.CENTER
-        table_arr[x].style = 'Table Grid'
-        cell_arr = []
-        par_arr = []
-        run_arr = []
-        for i in range(math.ceil(len(pg)/2)*2)[::2]:
-            for j in range(2):
-                try:
-                    ipj = i + j
-                    cell_arr.append(table_arr[x].cell(i, j))
-                    cell_arr[ipj].width = Inches(3.5)
-                    par_arr.append(cell_arr[ipj].paragraphs[0])
-                    # par_arr[ipj].alignment = WD_ALIGN_PARAGRAPH.DISTRIBUTE
-                    run_arr.append(par_arr[ipj].add_run())
-                    run_arr[ipj].add_picture(pg[ipj], height=Inches(2.75))
-                    last_p = doc.tables[-1].rows[-1].cells[-1].paragraphs[-1]
-                    last_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                except:
-                    pass
+    def photo_log_header(canv, apnm):
+        head = canv.beginText()
+        head.setTextOrigin(68, 737)
+        head.setFillColorRGB(0, 0.38, 0.92)
+        head.setFont('Cambria', 14)  # cambria (body)
+        head.textLine(text='Photo Log - ' + apnm)
+        canv.drawText(head)
 
-        cell_label_arr = []
-        par_label_arr = []
-        run_label_arr = []
-        font_label_arr = []
-        for i in range(math.ceil(len(pg)/2)*2)[1::2]:
-            for j in range(2):
-                try:
-                    comb = i + j -1
-                    cell_label_arr.append(table_arr[x].cell(i, j))
-                    par_label_arr.append(cell_label_arr[comb].paragraphs[0])
-                    par_label_arr[comb].alignment = 1
-                    run_label_arr.append(par_label_arr[comb].add_run(lg[comb]))
-                    font_label_arr.append(run_label_arr[comb].font)
-                    font_label_arr[comb].size = Pt(14)
-                except:
-                    pass
-        skipper = 0
-        for row in table_arr[x].rows:
-            if skipper == 1:
-                row.height = Pt(20)
-                skipper = 0
-            else:
-                skipper = 1
-        if page_len > 1 and x != (page_len-1):
-            brk_para_arr.append(doc.add_paragraph())
-            brk_run_arr.append(brk_para_arr[x].add_run(''))
+        im1 = utils.ImageReader(os.path.join(cwd, 'reporting/LRA/ei.png'))
+        im1w, im1h = im1.getSize()
+        im1_aspect = im1h / im1w
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # SAVE DOCUMENT AS
+        canv.drawImage(os.path.join(cwd, 'reporting/LRA/ei.png'),
+                       395,
+                       705,
+                       width=150,
+                       height=150 * im1_aspect)
 
-    fl_pat = 'lead_Pit/LRA/finished_Docs'
-    doc.save(str(fl_pat + '/' + beholden[0] + '/' + beholden[0] + '_photo_Log.docx'))
-    # ------------------------------------------------------------------------------------------------------------------
+    def convert_photos():
+        elevpat = os.path.join(app_data_pat, 'elevations')
+        arr_elev_pat = []
+        for x in range(4):
+            if not os.path.exists(os.path.join(elevpat, string.ascii_lowercase[x] + '.png')):
+                im = Image.open(os.path.join(elevpat, string.ascii_lowercase[x] + '.jpg'))
+                im.save(os.path.join(elevpat, string.ascii_lowercase[x] + '.png'))
+                arr_elev_pat.append(os.path.join(elevpat, string.ascii_lowercase[x] + '.png'))
+
+        xrfvpat = os.path.join(app_data_pat, 'xrf_Photos')
+        xrf_pos_arr = []
+        xrf_pos_pat_lis = os.listdir(xrfvpat)
+        for x in range(len(xrf_pos_pat_lis)):
+            if not os.path.exists((os.path.join(xrfvpat, xrf_pos_pat_lis[x]).split('.')[0] + '.png')):
+                im = Image.open(os.path.join(xrfvpat, xrf_pos_pat_lis[x]))
+                im.save(str(os.path.join(xrfvpat, xrf_pos_pat_lis[x]).split('.')[0] + '.png'))
+                xrf_pos_arr.append((os.path.join(xrfvpat, xrf_pos_pat_lis[x]).split('.')[0] + '.png'))
+
+    def create_table(canv):
+        canv.line(x1tab, y2tab, x2tab, y2tab)  # top border
+        canv.line(x2tab, y2tab, x2tab, y1tab)  # right border
+        canv.line(x2tab, y1tab, x1tab, y1tab)  # bottom border
+        canv.line(x1tab, y1tab, x1tab, y2tab)  # left border
+        canv.line((x1tab + x2tab) / 2, y2tab, (x1tab + x2tab) / 2, y1tab)  # vertical split
+        canv.line(x1tab, y1tab + hor_offset_tot + (2 * picntxt_height), x2tab,
+                  y1tab + hor_offset_tot + (2 * picntxt_height))  # top top line
+        canv.line(x1tab, y1tab + (2 * picntxt_height), x2tab, y1tab + (2 * picntxt_height))  # top base line
+        canv.line(x1tab, y1tab + hor_offset_tot + picntxt_height, x2tab,
+                  y1tab + hor_offset_tot + picntxt_height)  # mid top line
+        canv.line(x1tab, y1tab + picntxt_height, x2tab, y1tab + picntxt_height)  # mid base line
+        canv.line(x1tab, y1tab + hor_offset_tot, x2tab, y1tab + hor_offset_tot)  # bottom text box
+
+    # pop_sheet(canvas, get_pic_arr(), get_lab_arr(), x)
+    def pop_sheet(canv, pic_grp, lab_grp, lup):
+        group = pic_grp[lup]
+        lagrp = lab_grp[lup]
+        x1col = x1tab
+        x2col = x1tab + cell_width
+        lowy = y1tab + text_cell_height
+        midy = y1tab + text_cell_height + picntxt_height
+        topy = y1tab + text_cell_height + 2 * picntxt_height
+        groupxy = [
+            [x1col, topy],  # top left
+            [x2col, topy],  # top right
+            [x1col, midy],  # mid left
+            [x2col, midy],  # mid right
+            [x1col, lowy],  # low left
+            [x2col, lowy]  # low right
+        ]
+
+        for y in range(0, 6):
+            try:
+                im = utils.ImageReader(group[y])
+                imw, imh = im.getSize()
+                im_aspect = imh / imw
+                canv.drawImage(im, groupxy[y][0] + hor_off,
+                               groupxy[y][1] + ((pic_cell_height - (pic_width * im_aspect)) / 2), width=pic_width,
+                               height=pic_width * im_aspect)
+
+                head = canv.beginText()
+                head.setTextOrigin(groupxy[y][0] + 100, groupxy[y][1] - text_cell_height + 5)
+                head.setFont('Cambria', 13)  # cambria (body)
+                head.setFillColorRGB(0, 0, 0)
+                head.textLine(lagrp[y])
+                canv.drawText(head)
+            except:
+                pass
+
+    def fotolog_pdf_gen(beholden):
+        convert_photos()
+        appnum = str(beholden[0])
+        flapp = os.path.join(app_report_pat, beholden[0] + '_photo_Log')
+
+        canvas = Canvas(flapp + '.pdf', pagesize=(612.0, 792.0))
+        pdfmetrics.registerFont(TTFont('Cambria', 'cambria.ttf'))
+        canvas.setFont('Cambria', 32)
+        for x in range(int(page_len)):
+            photo_log_header(canvas, appnum)
+            create_table(canvas)
+            pop_sheet(canvas, get_pic_arr(), get_lab_arr(), x)
+            canvas.showPage()
+
+        canvas.save()
+
+    fotolog_pdf_gen(thero)
 
 
 # input: dfs is list of xrf pos tables
@@ -252,12 +295,7 @@ def pop_table(dfs, findings, index):
 # input: xrf clean
 # output: dflis is a dictionary of xrf pos dataframes
 def xrf_tables(xrf, pdf_path):
-
     pb_res = pdf_scrape(pdf_path)
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # manipulating dataframes
-
     xrf_pos = xrf  # create dataframe named xrf_pos containing all non-calibration positive lead readings
 
     for index, row in xrf_pos.iterrows():  # remove all negative and calibration rows
@@ -418,7 +456,6 @@ def xrf_tables(xrf, pdf_path):
         tab6 = pd.concat([tab6, s6], axis=0)
 
     # ------------------------------------------------------------------------------------------------------------------
-
     dflis = {'xrf_pos1': pd.DataFrame(xrf_pos1),  # group df's into a dictionary
              'xrf_pos2': pd.DataFrame(xrf_pos2),
              'xrf_pos3': pd.DataFrame(xrf_pos3),
@@ -442,11 +479,6 @@ def xrf_tables(xrf, pdf_path):
 # input: raw xrf data as df
 # output: clean xrf data as df
 def xrf_cleaner(xrf_dirty):
-    # ----------------------------------------------------------------------------------------------------------------------
-    # input: raw xrf data
-    # output: clean xrf excel sheet
-    # ----------------------------------------------------------------------------------------------------------------------
-
     xrf = pd.DataFrame(xrf_dirty)  # save argument as variable xrf
 
     for index, row in xrf.iterrows():  # remove xrf model block at top left of sheet
@@ -488,11 +520,14 @@ def xrf_cleaner(xrf_dirty):
 # input: schedule row relevant to app #, as array beholden
 # output: clean xrf df by calling xrf-cleaner() on the raw xrf file "readings" in LBP folder
 def get_xrf(beholden):
+    full_app = beholden[0] + ' - ' + beholden[5] + ' - ' + beholden[6]
+    lead_str = beholden[2] + '_LBP'
+    app_data_pat = os.path.join(cwd, 'uploads', full_app, lead_str, 'app_Data')
+
     # get path of readings file in dir
-    f_name = str(beholden[0]) + ' - ' + str(beholden[5] + ' - ' + str(beholden[6]))
-    file_name = os.listdir('uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Data_Raw')
-    file_path = 'uploads/' + f_name + '/' + str(beholden[2]) + '_LBP/xrf_Data_Raw/' + file_name[0]
-    suffix = file_name[0].split('.')[1]
+    file_name = os.listdir(os.path.join(app_data_pat, 'xrf_Data_Raw'))
+    file_path = os.path.join(app_data_pat, 'xrf_Data_Raw', file_name[0])
+    suffix = file_path.split('.')[-1]
     if suffix == 'xlsx':
         xhold = pd.read_excel(file_path.read())
     if suffix == 'csv':
@@ -569,12 +604,9 @@ def pdf_scrape(pdf_path):
 # input: beholden is an array containing the row of schedule relavant to the app #
 # output: clean xrf df saved as excel file
 def save_xrf_clean_xlsx(xrf, beholden):
-    app_folder = 'lead_Pit/LRA/finished_Docs'
-    appf = app_folder + '/' + str(beholden[0])
-    if not os.path.exists(appf):
-        os.makedirs(appf)
+    app_report_pat = os.path.join(cwd, 'finished_Docs', beholden[0])
 
-    filename_xrf = 'lead_Pit/LRA/finished_Docs/' + str(beholden[0]) + '/' + str(beholden[0]) + '_xrf_clean.xlsx'
+    filename_xrf = os.path.join(app_report_pat, str(beholden[0]) + '_xrf_clean.xlsx')
     writer = pd.ExcelWriter(filename_xrf, engine='xlsxwriter')
     workbook_setter = writer.book  # add formatting function
     header_format = workbook_setter.add_format({'bold': True,
@@ -589,9 +621,9 @@ def save_xrf_clean_xlsx(xrf, beholden):
                                                   'text_wrap': False,
                                                   'border': 1,
                                                   'align': 'center'})
-    sht_nm = 'xrf_data'
-    xrf.to_excel(writer, sheet_name=sht_nm, startrow=0, index=False)
-    sheet = writer.sheets[sht_nm]
+
+    xrf.to_excel(writer, sheet_name='xrf_data', startrow=0, index=False)
+    sheet = writer.sheets['xrf_data']
 
     for x in range(len(xrf.columns)):  # create blank sheet with labeled columns
         loc_str = string.ascii_uppercase[x] + str(1)
@@ -613,10 +645,10 @@ def save_xrf_clean_xlsx(xrf, beholden):
 # input: excel file xrf_clean
 # output: clean xrf data saved as xrf_clean.pdf
 def xrf_clean_excel2pdf(xrf, beholden):
-
-    app_folder = 'lead_Pit/LRA/finished_Docs'
-    appf = app_folder + '/' + str(beholden[0])
-    appff = appf + '/' + str(beholden[0]) + '_xrf_clean.pdf'
+    full_app = beholden[0] + ' - ' + beholden[5] + ' - ' + beholden[6]
+    lead_str = beholden[2] + '_LBP'
+    app_report_pat = os.path.join(cwd, 'finished_Docs', beholden[0])
+    appff = os.path.join(app_report_pat, str(beholden[0]) + '_xrf_clean.pdf')
 
     colors = []
     deff = '#FFFFFF'
@@ -635,7 +667,6 @@ def xrf_clean_excel2pdf(xrf, beholden):
             colors.append(possrow)
         else:
             colors.append(deffrow)
-    # xl = win32com.client.Dispatch('Excel.Application', pythoncom.CoInitialize())
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.axis('tight')
     ax.axis('off')
@@ -655,6 +686,10 @@ def xrf_clean_excel2pdf(xrf, beholden):
 # input: beholden is an array containing the row of schedule relavant to the app #
 # output: clean xrf df saved as excel file containing tables 1-5 as separate sheets named 'table1', 'table2', etc.
 def save_xrf_pos_xlsx(dflis, beholden):
+    full_app = beholden[0] + ' - ' + beholden[5] + ' - ' + beholden[6]
+    lead_str = beholden[2] + '_LBP'
+    app_report_pat = os.path.join(cwd, 'finished_Docs', beholden[0])
+
     table_names = ['Table 1: Lead-Based Paint¹',
                    'Table 2: Deteriorated Lead-Based Paint¹',
                    'Table 3: Lead Containing Materials²',
@@ -662,7 +697,7 @@ def save_xrf_pos_xlsx(dflis, beholden):
                    'Table 5: Soil Sample Analysis',
                    'Table 6: Lead Hazard Control Options¹']
     # create excel file to hold the different tables as separate worksheets
-    filename_xrf = 'lead_Pit/LRA/finished_Docs/' + str(beholden[0]) + '/' + str(beholden[0]) + '_xrf_pos.xlsx'
+    filename_xrf = os.path.join(app_report_pat, str(beholden[0]) + '_xrf_pos.xlsx')
     writer = pd.ExcelWriter(filename_xrf, engine='xlsxwriter')
 
     workbook_setter = writer.book  # add formatting function
@@ -702,7 +737,10 @@ def save_xrf_pos_xlsx(dflis, beholden):
     writer.save()
 
 
+# create docx version of lra
 def create_lra(dfliss, beholden, insp_num, proj_no):
+    app_report_pat = os.path.join(cwd, 'finished_Docs', beholden[0])
+
     # make list of lengths of tables stored in dflis for doc formatting
     dflis = list(dfliss.values())
     dflis_lenst = []
@@ -723,7 +761,7 @@ def create_lra(dfliss, beholden, insp_num, proj_no):
     # ------------------------------------------------------------------------------------------------------------------
 
     doc.add_paragraph('')
-    doc.add_picture('lead_Pit/reporting/LRA/LRA_Header.jpg', width=Inches(8.5))  # add image with defined size
+    doc.add_picture(os.path.join(cwd, 'reporting/LRA/LRA_Header.jpg'), width=Inches(8.5))  # add image with defined size
 
     para = doc.add_paragraph(datetime.now().strftime('%m/%d/%y'))  # add today's date
 
@@ -782,24 +820,23 @@ def create_lra(dfliss, beholden, insp_num, proj_no):
     para.add_run('Recommendations for lead-based paint hazards: see Table 6')
 
     para.add_run('\n\nInspector: ').bold = True
-    dispp(beholden)
     para.add_run(search_arr(insp_num, beholden[1])[0] + ', North Carolina Risk Assessor #' + search_arr(insp_num,
                                                                                                         beholden[1])[1])
     para.add_run('\n')
     # add section for 2 inspector names and signatures at the bottom of the first page
     emp_name = beholden[1]  # assign current employee name to variable emp_name
-    emp_lis = os.listdir('lead_Pit/reporting/sig_Block')  # create list of employees from sig_Block folder
+    emp_lis = os.listdir(os.path.join(cwd, 'reporting/sig_Block'))  # create list of employees from sig_Block folder
 
     # create new doc element 'new_para' to hold signature block
     for x in range(len(emp_lis)):
         if emp_name.lower() in emp_lis[x]:
             sig_path = emp_lis[x]  # assign file path of current employee sig block to variable sig_path
-            sig_path = 'lead_Pit/reporting/sig_Block/' + sig_path
+            sig_path = os.path.join(cwd, 'reporting/sig_Block', sig_path)
             doc.add_picture(sig_path, width=Inches(6.5), height=Inches(1.5))
             new_para = doc.paragraphs[-1]
             new_para.paragraph_format.left_indent = Inches(0.85)
 
-    doc.add_picture('lead_Pit/reporting/LRA/LRA_Footer.jpg', width=Inches(8.5))  # add footer
+    doc.add_picture(os.path.join(cwd, 'reporting/LRA/LRA_Footer.jpg'), width=Inches(8.5))  # add footer
 
     # ------------------------------------------------------------------------------------------------------------------
     # PAGE 2
@@ -992,15 +1029,14 @@ def create_lra(dfliss, beholden, insp_num, proj_no):
     # SAVE DOCUMENT AS
 
     # create new app folder containing LRA word doc
-    app_folder = 'lead_Pit/LRA/finished_Docs'
-    appf = app_folder + '/' + str(beholden[0])
-    appff = appf + '/' + str(beholden[0]) + '_LRA.docx'
-    if not os.path.exists(appf):
-        os.makedirs(appf)
-    doc.save(str(appff))  # save doc
+    appff = os.path.join(app_report_pat, str(beholden[0]) + '_LRA.docx')
+    doc.save(appff)  # save doc
 
 
+# create docx version of lbpas
 def create_lbpas(dfliss, beholden, insp_num, sig):
+    app_report_pat = os.path.join(cwd, 'finished_Docs', beholden[0])
+
     dflis = list(dfliss.values())
     dflis_lenst = []
     for x in range(len(dflis)):
@@ -1012,7 +1048,7 @@ def create_lbpas(dfliss, beholden, insp_num, sig):
         if beholden[1] in name:
             name_hold = name
 
-    sig_pat = 'lead_Pit/reporting/Signatures/' + sig[name_hold] + '.png'
+    sig_pat = os.path.join(cwd, 'reporting/Signatures', sig[name_hold] + '.png')
     doc = docx.Document()  # create instance of a word document
     sec_pr = doc.sections[0]._sectPr  # get the section properties el
     pg_borders = OxmlElement('w:pgBorders')  # create new borders el
@@ -1421,10 +1457,111 @@ def create_lbpas(dfliss, beholden, insp_num, sig):
     # SAVE DOCUMENT AS
 
     # create new app folder containing LRA word doc
-    app_folder = 'lead_Pit/LRA/finished_Docs/'
-    appf = str(app_folder) + str(beholden[0]) + '/'
-    appff = appf + str(beholden[0]) + '_LBPAS.docx'
-    if not os.path.exists(appf):
-        os.makedirs(appf)
+    appff = os.path.join(app_report_pat, str(beholden[0]) + '_LBPAS.docx')
     doc.save(str(appff))  # save doc
+
+
+# create pdf version of lra
+def create_lra_pdf(dfliss, beholden, insp_num, proj_no):
+    x1 = 0  # x origin page
+    y1 = 0  # y origin page
+    x2 = 612  # x max page
+    y2 = 792  # y max page
+    left_indent = 70
+
+    def page_one(canv):
+        # function to add text at specific spot in pdf
+        def make_par(left_ind, yval, txt, bold=False):
+            par = canv.beginText()
+            par.setTextOrigin(left_ind, yval)
+            if not bold:
+                par.setFont('Cambria', 12)
+            if bold:
+                par.setFont('CambriaBd', 12)
+            par.setFillColorRGB(0, 0, 0)
+            par.textLines(str(txt))
+            canv.drawText(par)
+
+        im = utils.ImageReader(os.path.join(cwd, 'reporting/LRA/LRA_Header.jpg'))
+        imw, imh = im.getSize()
+        im_aspect = imh / imw
+        canv.drawImage(im, 10, 640, width=x2 - 20, height=(x2 - 20) * im_aspect)
+
+        make_par(left_indent, 610, datetime.now().strftime('%m/%d/%y'))
+
+        make_par(left_indent, 585, 'Dewberry c/o NCORR\n'
+                                   '1545 Peachtree Street NE, Suite 250\n'
+                                   'Atlanta, Georgia 30309')
+
+        make_par(left_indent, 530, 'Re:      Lead Risk Assessment')
+        make_par(100, 515, str(beholden[5]) + ', ' + str(beholden[6]) + ', NC ' + str(beholden[7]) + '\n' + 'EI Project No: ' + proj_no)
+
+        make_par(left_indent, 470, 'Project Site Address: ', bold=True)
+        make_par(left_indent + 120, 470, str(beholden[5]) + ', ' + str(beholden[6]) + ', NC ' + str(beholden[7]))
+
+        make_par(left_indent, 445, 'NCORR APP ID:', bold=True)
+        make_par(left_indent + 95, 445, beholden[0] + ', ' + str(beholden[2]))
+
+        timearr = (str(beholden[11]).split(' ')[0]).split('-')
+        timestr = str(timearr[1]) + '/' + str(timearr[2]) + '/' + str(timearr[0])
+        make_par(left_indent, 420, 'Inspection Date:', bold=True)
+        make_par(left_indent + 90, 420, timestr)
+
+        make_par(left_indent, 395, 'Scope of Work:', bold=True)
+        make_par(left_indent + 95, 395, 'Lead Risk Assessment')
+
+        make_par(left_indent, 370, 'Lead-Based Paint Inspection:', bold=True)
+        make_par(left_indent + 165, 370, 'Lead-Based Paint Found')
+
+        make_par(left_indent, 345, 'Deteriorated Lead-Based Paint:', bold=True)
+        make_par(left_indent + 177, 345, 'Yes')
+
+        make_par(left_indent, 320, 'Lead Containing Materials:', bold=True)
+        make_par(left_indent + 160, 320, 'Yes')
+
+        make_par(left_indent, 295, 'Lead Dust Hazards:', bold=True)
+        make_par(left_indent + 110, 295, 'Yes')
+
+        make_par(left_indent, 270, 'Lead Soil Hazards:', bold=True)
+        make_par(left_indent + 110, 270, 'Yes')
+
+        make_par(left_indent, 245, 'Recommendations:', bold=True)
+        make_par(left_indent + 110, 245, 'Recommendations for lead-based paint hazards: see Table 6')
+
+        make_par(left_indent, 220, 'Inspector:', bold=True)
+        make_par(left_indent + 60, 220, search_arr(insp_num, beholden[1])[0] + ', North Carolina Risk Assessor #' +
+                 search_arr(insp_num, beholden[1])[1])
+
+        emp_name = beholden[1]  # assign current employee name to variable emp_name
+        emp_lis = os.listdir(os.path.join(cwd, 'reporting/sig_Block'))  # create list of employees from sig_Block folder
+
+        # create new doc element 'new_para' to hold signature block
+        for x in range(len(emp_lis)):
+            if emp_name.lower() in emp_lis[x]:
+                sig_path = emp_lis[x]  # assign file path of current employee sig block to variable sig_path
+                sig_path = os.path.join(cwd, 'reporting/sig_Block', sig_path)
+                im = utils.ImageReader(sig_path)
+                imw, imh = im.getSize()
+                im_aspect = imh / imw
+                canv.drawImage(im, (x2 - (x2 - 100)) / 2, 60, width=x2 - 100, height=(x2 - 100) * im_aspect)
+
+        im = utils.ImageReader(os.path.join(cwd, 'reporting/LRA/LRA_Footer.jpg'))
+        imw, imh = im.getSize()
+        im_aspect = imh / imw
+        canv.drawImage(im, 5, 5, width=x2 - 10, height=(x2 - 10) * im_aspect)
+
+        canv.showPage()
+        make_par(left_indent, 650, 'Findings:', bold=True)
+
+    def lra_pdf_gen():
+        flapp = os.path.join(cwd, 'finished_Docs', beholden[0], beholden[0] + '_LRA.pdf')
+        canvas = Canvas(flapp, pagesize=(612.0, 792.0))
+        pdfmetrics.registerFont(TTFont('Cambria', 'cambria.ttf'))
+        pdfmetrics.registerFont(TTFont('CambriaBd', 'CambriaB.ttf'))
+        canvas.setFont('Cambria', 12)
+
+        page_one(canvas)
+        canvas.save()
+
+    lra_pdf_gen()
 

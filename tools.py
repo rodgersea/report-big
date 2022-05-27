@@ -7,7 +7,6 @@ from PIL import Image
 
 # TOOLS
 # ----------------------------------------------------------------------------------------------------------------------
-# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
 
 # input: "paths" is passed as a list of pdf file names
@@ -22,8 +21,8 @@ def merge_pdfs(paths, output):
 # input: image path
 # output: pdf with file name as "image path".pdf
 def img2pdf(fdr_nm):
-    imgpat = fdr_nm + '.jpg'
-    pdfpat = fdr_nm + '.pdf'
+    imgpat = fdr_nm
+    pdfpat = fdr_nm
     img1 = Image.open(imgpat)
     img2 = img1.convert('RGB')
     img2.save(pdfpat)
